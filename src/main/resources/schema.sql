@@ -1,3 +1,9 @@
+--ATENTOS A ESTO POR FAVOR, ESTE SCHEMA DESPUES SE TIENE QUE BORRAR Y LLEVAR A LA BASE DE DATOS DE MYSQL, ES DECIR, ESTE CODIGO VA EN LA BASE DE DATOS Y DE AHI
+--HACEMOS LA CONEXION
+--QUIEN SE QUIERA HACER CARGO QUE DIGA, TAMBIEN SI EL TIEMPO NOS DA
+-- PODEMOS HACER UNA BASE DE DATOS CONTINUAS (QUE LOS DATOS SEAN EN TIEMPO REAL)
+
+
 -- ============================================================================
 -- 1-Creamos la base de Datos para que después al conectarla a MySQL quede todo hecho
 -- ============================================================================
