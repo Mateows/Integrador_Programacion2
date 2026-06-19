@@ -1,4 +1,9 @@
 package integrador.prog2.dao;
 
-public interface UsuarioDAO {
+import integrador.prog2.entities.Usuario;
+
+public interface UsuarioDAO extends GenericDAO<Usuario> {
+    boolean existeMail(String mail, Long idExcluir);
+    Usuario buscarPorMail(String mail);
 }
+

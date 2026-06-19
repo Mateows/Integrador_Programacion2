@@ -1,4 +1,7 @@
 package integrador.prog2.dao;
 
-public interface CategoriaDAO {
+import integrador.prog2.entities.Categoria;
+
+public interface CategoriaDAO extends GenericDAO<Categoria> {
+    boolean existeNombre(String nombre, Long idExcluir);
 }

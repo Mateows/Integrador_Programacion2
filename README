@@ -1,71 +1,94 @@
 # Food Store - Sistema de Gestión de Pedidos de Comida
 
-Este proyecto es una aplicación de consola en Java orientada a la gestión de productos, categorías, usuarios y pedidos de un negocio de comidas, desarrollada para el Trabajo Práctico Integrador de Programación 2.
-
-##  Estado Actual del Proyecto
-El sistema cuenta actualmente con su arquitectura por capas 100% estructural y funcional en memoria:
-* **`entities` / `enums` / `interfaces`**: Modelo de dominio con herencia de la clase `Base`, enums relacionales e interfaz `Calculable`.
-* **`service`**: Capa de lógica de negocio blindada con validaciones defensivas completas (control de stock, precios no negativos, unicidad de mail, etc.).
-* **`menu`**: Interfaz de usuario por consola modularizada (un menú dedicado para cada entidad con validación de ingreso de datos).
-* **`exception`**: Excepciones de negocio personalizadas para el control robusto de errores.
+Aplicación de consola en Java para gestión de productos, categorías, usuarios y pedidos, desarrollada como Trabajo Práctico Integrador de Programación 2 - UTN.
 
 ---
 
-##Requisitos Previos
-* **Java Development Kit (JDK)**: Versión 21.
-* **Gestor de Proyectos**: Apache Maven.
-* **Motor de Base de Datos (Fase de Persistencia)**: MySQL (Recomendado).
+## Estado del Proyecto
+Sistema completo con persistencia real en MySQL mediante JDBC.
+
+### Capas implementadas:
+- **`entities`**: Modelo de dominio con herencia de clase abstracta `Base`, enums e interfaz `Calculable`.
+- **`exception`**: Excepciones de negocio personalizadas (`DatoInvalidoException`, `EmailDuplicadoException`, `EntidadNoEncontradaException`, `StockInvalidoException`).
+- **`service`**: Lógica de negocio con validaciones defensivas completas.
+- **`dao`**: Interfaces genéricas y específicas por entidad.
+- **`dao/Impl`**: Implementaciones JDBC con `PreparedStatement`, `ResultSet` y transacciones.
+- **`config`**: Clase `ConexionBD` centralizada para gestión de credenciales.
+- **`menu`**: Interfaz de consola modularizada con validación de entrada en tiempo real.
 
 ---
 
-##Configuración de la Base de Datos
+## Requisitos Previos
+- **JDK**: Java 21
+- **Build**: Apache Maven
+- **Base de datos**: MySQL 8+
+- **Cliente SQL**: MySQL Workbench (recomendado)
 
-El diseño relacional está completamente definido y estructurado en base al diagrama UML del sistema. Antes de proceder a la fase de conectividad con JDBC:
+---
 
-1. Asegúrese de tener instalado y corriendo su servidor MySQL local.
-2. Abra su cliente de base de datos preferido (MySQL Workbench, DBeaver, etc.).
-3. Ejecute el script de estructura y datos iniciales ubicado en:
-   `src/main/resources/schema.sql`.
-   * *Este script creará de forma automática la base de datos `food_store_db`, las tablas con auditoría de borrado lógico (`eliminado = true`) y cargará registros semilla de prueba*.
+## Configuración de la Base de Datos
 
----Hasta acá todo bien en el proyecto, abajo esta todo lo malo
+1. Asegurate de tener MySQL corriendo localmente.
+2. Abrí MySQL Workbench y conectate al servidor local.
+3. Abrí el archivo `src/main/resources/schema.sql`.
+4. Ejecutalo completo con el botón ⚡ — esto crea automáticamente:
+   - La base de datos `food_store_db`
+   - Las 5 tablas (`categoria`, `producto`, `usuario`, `pedido`, `detalle_pedido`)
+   - Datos semilla de prueba (2 categorías, 3 productos, 2 usuarios)
 
+---
 
+## Configuración de la Conexión
 
+Abrí `src/main/java/integrador/prog2/config/ConexionBD.java` y verificá:
 
+```java
+private static final String URL = "jdbc:mysql://localhost:3306/food_store_db?useSSL=false&serverTimezone=America/Argentina/Buenos_Aires&allowPublicKeyRetrieval=true";
+private static final String USER = "root";
+private static final String PASSWORD = ""; // tu contraseña de MySQL
+```
 
+Cambiá `USER` y `PASSWORD` según tu configuración local.
 
-Lista de Tareas Pendientes (To-Do List)
-A continuación se detallan los módulos y capas técnicas pendientes de desarrollo para completar la persistencia real del sistema:
+---
 
-1. Robustez Estricta en Entidades (entities)
-[ ] Validación Defensiva en Setters: Modificar los métodos de asignación en las clases del paquete entities (como setPrecio, setStock, setId) para que lancen excepciones (DatoInvalidoException / StockInvalidoException) si se intentan forzar valores negativos o nulos directamente sobre el objeto, puenteando los servicios.
+## Cómo Ejecutar
 
-[ ] Protección de Colecciones: Modificar los getters que retornan listas (como getProductos en Categoria) para que devuelvan vistas inmutables (List.copyOf), evitando sabotajes o modificaciones externas a las colecciones vivas desde fuera de la clase.
+1. Cloná el repositorio.
+2. Configurá la base de datos siguiendo los pasos anteriores.
+3. Abrí el proyecto en IntelliJ IDEA.
+4. Esperá que Maven descargue las dependencias.
+5. Ejecutá la clase `Main.java`.
 
-2. Capa de Conexión (utils / database)
-[ ] Clase de Conexión de Base de Datos: Crear una clase encargada de gestionar las credenciales, registrar el Driver de MySQL y proveer el objeto Connection activo mediante DriverManager.getConnection().
+---
 
-3. Capa de Persistencia (dao - Data Access Object)
-Esta capa reemplazará por completo el almacenamiento temporal en memoria (ArrayList). Se deben estructurar los siguientes componentes:
+## Funcionalidades
 
-[ ] Definición de Interfaces: Crear las interfaces de persistencia en la carpeta dao (ej. IUsuarioDAO, IProductoDAO, IPedidoDAO) con los contratos de operaciones CRUD esenciales:
+### Categorías
+- Listar, crear, editar y eliminar (baja lógica)
+- Validación de nombre único y mínimo 2 caracteres
+- No permite eliminar si tiene productos asociados
 
-crear(entidad) -> Ejecuta un INSERT INTO
+### Productos
+- Listar todos o por categoría
+- Crear con validación de precio >= 0 y stock >= 0
+- Editar y eliminar (baja lógica)
 
-buscarPorId(id) -> Ejecuta un SELECT * WHERE id = ? AND eliminado = false
+### Usuarios
+- Listar, crear, editar y eliminar (baja lógica)
+- Validación de mail único y formato válido
+- Contraseña mínimo 6 caracteres
+- Celular solo números
 
-listar() -> Ejecuta un SELECT * WHERE eliminado = false
+### Pedidos
+- Crear pedido con múltiples detalles
+- Cálculo automático de subtotal y total (`calcularTotal()` via interfaz `Calculable`)
+- Transacción JDBC: si falla un detalle se hace rollback completo
+- Actualizar estado y forma de pago
+- Eliminar lógicamente pedido y sus detalles
 
-editar(entidad) -> Ejecuta un UPDATE de los campos modificados
+---
 
-eliminar(id) -> Ejecuta un borrado lógico: UPDATE tabla SET eliminado = true WHERE id = ?
-
-[ ] Implementaciones JDBC: Crear las clases concretas que implementen dichas interfaces (ej. UsuarioDAOJDBC, ProductoDAOJDBC, PedidoDAOJDBC) empleando PreparedStatement para evitar inyecciones SQL y mapeando los resultados del ResultSet hacia objetos Java.
-
-[ ] Transacciones de Pedidos: Desarrollar la lógica transaccional en PedidoDAOJDBC para asegurar que al insertar un pedido, se guarden de forma atómica sus respectivos detalle_pedido en la base de datos o se haga un rollback automático si alguna inserción falla.
-
-4. Capa de Negocio (service)
-[ ] Inyección de DAOs: Modificar los constructores de los servicios actuales (UsuarioService, ProductoService, etc.) para que dejen de usar listas en memoria e instancien sus respectivos componentes DAO.
-
-[ ] Adaptación de Métodos: Reemplazar los bucles for de búsqueda por llamadas directas a los métodos del DAO, manteniendo intactas las reglas de validación de negocio antes de enviar los datos a persistir.
+## Pendiente
+- Prueba de funcionamiento correcto
+- Documentación PDF: [pendiente]

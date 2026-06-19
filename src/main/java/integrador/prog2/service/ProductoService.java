@@ -1,78 +1,58 @@
 package integrador.prog2.service;
 
+import integrador.prog2.dao.ProductoDAO;
+import integrador.prog2.dao.Impl.ProductoDAOImpl;
 import integrador.prog2.entities.Categoria;
 import integrador.prog2.entities.Producto;
 import integrador.prog2.exception.DatoInvalidoException;
 import integrador.prog2.exception.EntidadNoEncontradaException;
 import integrador.prog2.exception.StockInvalidoException;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class ProductoService {
 
-    private List<Producto> productos;
-    private Long contadorId;
+    private final ProductoDAO productoDAO;
 
     public ProductoService() {
-        this.productos = new ArrayList<>();
-        this.contadorId = 1L;
+        this.productoDAO = new ProductoDAOImpl();
     }
-
-    //Lista solo los que no se han eliminado
 
     public List<Producto> listar() {
-        List<Producto> activos = new ArrayList<>();
-        for (Producto p : productos) {
-            if (!p.isEliminado()) {
-                activos.add(p);
-            }
-        }
-        return activos;
+        return productoDAO.listar();
     }
-
-    //Lista por categoria
 
     public List<Producto> listarPorCategoria(Long categoriaId) {
-        List<Producto> resultado = new ArrayList<>();
-        for (Producto p : productos) {
-            if (!p.isEliminado() && p.getCategoria().getId().equals(categoriaId)) {
-                resultado.add(p);
-            }
-        }
-        return resultado;
+        return productoDAO.listarPorCategoria(categoriaId);
     }
-
-    //Busca por id
 
     public Producto buscarPorId(Long id) {
-        for (Producto p : productos) {
-            if (p.getId().equals(id) && !p.isEliminado()) {
-                return p;
-            }
-        }
-        throw new EntidadNoEncontradaException("No se encontró producto con el ID: " + id);
+        return productoDAO.buscarPorId(id);
     }
 
-    //para crear
-
-    public Producto crear(String nombre, Double precio, String descripcion, Integer stock, String imagen, Boolean disponible, Categoria categoria) {
+    public Producto crear(String nombre, Double precio, String descripcion,
+                          Integer stock, String imagen, Boolean disponible,
+                          Categoria categoria) {
         validarNombre(nombre);
+        validarNombreSoloLetras(nombre);  // ← agregar
         validarPrecio(precio);
+        validarPrecioMaximo(precio);      // ← agregar
         validarStock(stock);
+        validarStockMaximo(stock);
         validarCategoria(categoria);
 
-        Producto nuevo = new Producto(contadorId++, nombre.trim(), precio,
-                descripcion.trim(), stock, imagen, disponible, categoria);
-        productos.add(nuevo);
-        categoria.getProductos().add(nuevo);
-        return nuevo;
+        if (imagen == null || imagen.isBlank()) {
+            imagen = "sin_imagen.jpg";
+        }
+        Producto nuevo = new Producto(null, nombre.trim(), precio,
+                descripcion.trim(), stock, imagen,
+                disponible, categoria);
+        return productoDAO.crear(nuevo);
     }
 
-    //Para editar
-
-    public Producto editar(Long id, String nombre, Double precio, String descripcion, Integer stock, Boolean disponible, Categoria categoria) {
-
+    public Producto editar(Long id, String nombre, Double precio,
+                           String descripcion, Integer stock,
+                           Boolean disponible, Categoria categoria) {
         Producto producto = buscarPorId(id);
 
         if (nombre != null && !nombre.isBlank()) {
@@ -80,6 +60,7 @@ public class ProductoService {
         }
         if (precio != null) {
             validarPrecio(precio);
+            validarPrecioMaximo(precio);
             producto.setPrecio(precio);
         }
         if (descripcion != null && !descripcion.isBlank()) {
@@ -87,6 +68,7 @@ public class ProductoService {
         }
         if (stock != null) {
             validarStock(stock);
+            validarStockMaximo(stock);
             producto.setStock(stock);
         }
         if (disponible != null) {
@@ -94,21 +76,15 @@ public class ProductoService {
         }
         if (categoria != null) {
             validarCategoria(categoria);
-            producto.getCategoria().getProductos().remove(producto);
             producto.setCategoria(categoria);
-            categoria.getProductos().add(producto);
         }
-        return producto;
+        return productoDAO.editar(producto);
     }
 
-    // para eliminar
-
-    public void eliminar(Long id){
-        Producto producto = buscarPorId(id);
-        producto.setEliminado(true);
+    public void eliminar(Long id) {
+        buscarPorId(id);
+        productoDAO.eliminar(id);
     }
-
-    //Validaciones privadas
 
     private void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
@@ -146,5 +122,21 @@ public class ProductoService {
         }
     }
 
+    private void validarNombreSoloLetras(String nombre) {
+        if (!nombre.trim().matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
+            throw new DatoInvalidoException("El nombre solo puede contener letras y espacios");
+        }
+    }
 
+    private void validarPrecioMaximo(Double precio) {
+        if (precio > 999999) {
+            throw new DatoInvalidoException("El precio no puede superar $999.999");
+        }
+    }
+
+    private void validarStockMaximo(Integer stock) {
+        if (stock > 9999) {
+            throw new StockInvalidoException("El stock no puede superar 9.999 unidades");
+        }
+    }
 }

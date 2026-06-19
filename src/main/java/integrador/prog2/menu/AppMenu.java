@@ -37,7 +37,15 @@ public class AppMenu {
                 case 2 -> new ProductoMenu(scanner, productoService, categoriaService).iniciar();
                 case 3 -> new UsuarioMenu(scanner, usuarioService).iniciar();
                 case 4 -> new PedidoMenu(scanner, pedidoService, usuarioService, productoService).iniciar();
-                case 0 -> System.out.println("¡Hasta luego!");
+                case 0 -> {
+                    System.out.print("¿Está seguro que desea salir? (S/N): ");
+                    String confirmacion = scanner.nextLine().trim();
+                    if (confirmacion.equalsIgnoreCase("S")) {
+                        System.out.println("¡Hasta luego!");
+                        return;
+                    }
+                    opcion = -1;
+                }
                 default -> System.out.println("Opción inválida. Intente nuevamente.");
             }
         }

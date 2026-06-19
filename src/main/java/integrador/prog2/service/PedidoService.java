@@ -1,75 +1,50 @@
 package integrador.prog2.service;
 
+import integrador.prog2.dao.PedidoDAO;
+import integrador.prog2.dao.Impl.PedidoDAOImpl;
 import integrador.prog2.entities.Pedido;
 import integrador.prog2.entities.Producto;
 import integrador.prog2.entities.Usuario;
 import integrador.prog2.enums.Estado;
 import integrador.prog2.enums.FormaPago;
 import integrador.prog2.exception.DatoInvalidoException;
-import integrador.prog2.exception.EntidadNoEncontradaException;
+import integrador.prog2.entities.DetallePedido;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class PedidoService {
 
-    private List<Pedido> pedidos;
-    private Long contadorId;
+    private final PedidoDAO pedidoDAO;
 
     public PedidoService() {
-        this.pedidos = new ArrayList<>();
-        this.contadorId = 1L;
+        this.pedidoDAO = new PedidoDAOImpl();
     }
 
-    // Lista solo los no eliminados
     public List<Pedido> listar() {
-        List<Pedido> activos = new ArrayList<>();
-        for (Pedido p : pedidos) {
-            if (!p.isEliminado()) {
-                activos.add(p);
-            }
-        }
-        return activos;
+        return pedidoDAO.listar();
     }
 
-    // Lista por usuario
     public List<Pedido> listarPorUsuario(Long usuarioId) {
-        List<Pedido> resultado = new ArrayList<>();
-        for (Pedido p : pedidos) {
-            if (!p.isEliminado() && p.getUsuario().getId().equals(usuarioId)) {
-                resultado.add(p);
-            }
-        }
-        return resultado;
+        return pedidoDAO.listarPorUsuario(usuarioId);
     }
-
-    // Busca por ID
 
     public Pedido buscarPorId(Long id) {
-        for (Pedido p : pedidos) {
-            if (p.getId().equals(id) && !p.isEliminado()) {
-                return p;
-            }
-        }
-        throw new EntidadNoEncontradaException("No se encontró pedido con el ID: " + id);
+        return pedidoDAO.buscarPorId(id);
     }
-
-    // Crear
 
     public Pedido crear(Usuario usuario, FormaPago formaPago) {
         validarUsuario(usuario);
         validarFormaPago(formaPago);
+        validarPedidoPendiente(usuario);
 
-        Pedido nuevo = new Pedido(contadorId++, formaPago, usuario);
-        pedidos.add(nuevo);
+        Pedido nuevo = new Pedido(null, formaPago, usuario);
         usuario.getPedidos().add(nuevo);
-        return nuevo;
+        return pedidoDAO.crear(nuevo);
     }
-
-    // Agregar detalle al pedido
 
     public void agregarDetalle(Pedido pedido, Producto producto, Integer cantidad) {
         validarProducto(producto);
+        validarProductoNoDuplicado(pedido, producto);
         if (cantidad == null || cantidad <= 0) {
             throw new DatoInvalidoException("La cantidad debe ser mayor a 0");
         }
@@ -79,12 +54,14 @@ public class PedidoService {
         }
         try {
             pedido.addDetallePedido(cantidad, producto.getPrecio(), producto);
-        } catch (Exception e) { // Si falla, el pedido se queda sin ese detalle (no hay inconsistencia)
+            DetallePedido ultimoDetalle = pedido.getDetalles().get(pedido.getDetalles().size() - 1);
+            ((PedidoDAOImpl) pedidoDAO).insertarDetalle(pedido.getId(), ultimoDetalle);
+            pedidoDAO.editar(pedido);
+        } catch (Exception e) {
             throw new DatoInvalidoException("Error al agregar detalle: " + e.getMessage());
         }
     }
 
-    // Actualizar el estado y la forma de pago
     public Pedido actualizar(Long id, Estado estado, FormaPago formaPago) {
         Pedido pedido = buscarPorId(id);
 
@@ -95,18 +72,13 @@ public class PedidoService {
         if (formaPago != null) {
             pedido.setFormaPago(formaPago);
         }
-        return pedido;
+        return pedidoDAO.editar(pedido);
     }
 
-    // Eliminar
     public void eliminar(Long id) {
-        Pedido pedido = buscarPorId(id);
-        pedido.setEliminado(true);
-        // Eliminar también los detalles
-        pedido.getDetalles().forEach(d -> d.setEliminado(true));
+        buscarPorId(id);
+        pedidoDAO.eliminar(id);
     }
-
-    // Validaciones privadas
 
     private void validarUsuario(Usuario usuario) {
         if (usuario == null) {
@@ -141,6 +113,30 @@ public class PedidoService {
         }
         if (estadoActual == Estado.TERMINADO) {
             throw new DatoInvalidoException("No se puede modificar un pedido terminado");
+        }
+    }
+    private void validarPedidoPendiente(Usuario usuario) {
+        List<Pedido> pedidos = pedidoDAO.listarPorUsuario(usuario.getId());
+        for (Pedido p : pedidos) {
+            if (p.getEstado() == Estado.PENDIENTE) {
+                throw new DatoInvalidoException(
+                        "El usuario ya tiene un pedido PENDIENTE (ID: " + p.getId() + "). Confirmalo o cancelalo primero."
+                );
+            }
+        }
+    }
+
+    private void validarProductoNoDuplicado(Pedido pedido, Producto producto) {
+        if (pedido.findDetallePedidoByProducto(producto) != null) {
+            throw new DatoInvalidoException(
+                    "El producto '" + producto.getNombre() + "' ya está en el pedido"
+            );
+        }
+    }
+
+    private void validarPedidoConDetalles(Pedido pedido) {
+        if (pedido.getDetalles().isEmpty()) {
+            throw new DatoInvalidoException("El pedido debe tener al menos un producto");
         }
     }
 }

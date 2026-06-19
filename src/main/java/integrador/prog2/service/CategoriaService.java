@@ -1,73 +1,52 @@
 package integrador.prog2.service;
 
+import integrador.prog2.dao.CategoriaDAO;
+import integrador.prog2.dao.Impl.CategoriaDaoImpl;
 import integrador.prog2.entities.Categoria;
 import integrador.prog2.exception.DatoInvalidoException;
 import integrador.prog2.exception.EntidadNoEncontradaException;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CategoriaService {
 
-    private List<Categoria> categorias;
-    private Long contadorId;
+    private final CategoriaDAO categoriaDAO;
 
-    public CategoriaService(){
-        this.categorias = new ArrayList<>();
-        this.contadorId = 1L;
+    public CategoriaService() {
+        this.categoriaDAO = new CategoriaDaoImpl();
     }
-
-    //Lista solo las eliminadas
 
     public List<Categoria> listar() {
-        List<Categoria> activas = new ArrayList<>();
-        for (Categoria c : categorias) {
-            if (!c.isEliminado()) {
-                activas.add(c);
-            }
-        }
-        return activas;
+        return categoriaDAO.listar();
     }
 
-    //Busca por ID
-
-    public Categoria buscarPorId(Long id){
-        for(Categoria c : categorias){
-            if(c.getId().equals(id) && !c.isEliminado()){
-                return c;
-            }
-        }
-        throw new EntidadNoEncontradaException("No se encontró categoría con ID: " + id);
+    public Categoria buscarPorId(Long id) {
+        return categoriaDAO.buscarPorId(id);
     }
-
-    //Crear
 
     public Categoria crear(String nombre, String descripcion) {
         validarNombre(nombre);
+        validarNombreSoloLetras(nombre);
         validarDescripcion(descripcion);
         validarNombreUnico(nombre, null);
 
-        Categoria nueva = new Categoria(contadorId++, nombre.trim(), descripcion.trim());
-        categorias.add(nueva);
-        return nueva;
+        Categoria nueva = new Categoria(null, nombre.trim(), descripcion.trim());
+        return categoriaDAO.crear(nueva);
     }
-
-    //Editar
 
     public Categoria editar(Long id, String nombre, String descripcion) {
         Categoria categoria = buscarPorId(id);
 
         if (nombre != null && !nombre.isBlank()) {
+            validarNombreSoloLetras(nombre);
             validarNombreUnico(nombre, id);
             categoria.setNombre(nombre.trim());
         }
         if (descripcion != null && !descripcion.isBlank()) {
             categoria.setDescripcion(descripcion.trim());
         }
-        return categoria;
+        return categoriaDAO.editar(categoria);
     }
-
-    //Eliminar
 
     public void eliminar(Long id) {
         Categoria categoria = buscarPorId(id);
@@ -76,10 +55,8 @@ public class CategoriaService {
                     "No se puede eliminar la categoría porque tiene productos asociados"
             );
         }
-        categoria.setEliminado(true);
+        categoriaDAO.eliminar(id);
     }
-
-    //Validaciones privadas
 
     private void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
@@ -97,15 +74,15 @@ public class CategoriaService {
     }
 
     private void validarNombreUnico(String nombre, Long idExcluir) {
-        for (Categoria c : categorias) {
-            if (!c.isEliminado() &&
-                    c.getNombre().equalsIgnoreCase(nombre.trim()) &&
-                    !c.getId().equals(idExcluir)) {
-                throw new DatoInvalidoException("Ya existe una categoría con el nombre: " + nombre);
-            }
+        if (categoriaDAO.existeNombre(nombre.trim(), idExcluir)) {
+            throw new DatoInvalidoException("Ya existe una categoría con el nombre: " + nombre);
         }
     }
-
+    private void validarNombreSoloLetras(String nombre) {
+        if (!nombre.trim().matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
+            throw new DatoInvalidoException("El nombre solo puede contener letras y espacios");
+        }
+    }
     public void validarNombreUnico(String nombre) {
         validarNombreUnico(nombre, null);
     }

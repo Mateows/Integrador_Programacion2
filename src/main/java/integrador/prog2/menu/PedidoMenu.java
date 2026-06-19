@@ -109,8 +109,9 @@ public class PedidoMenu {
             for (Usuario u : usuarios) {
                 System.out.println(u);
             }
-            System.out.print("ID de usuario: ");
+            System.out.print("ID de usuario (0 para cancelar): ");
             Long usuarioId = (long) leerEntero();
+            if (usuarioId == 0) { System.out.println("Operación cancelada."); return; }
             Usuario usuario = usuarioService.buscarPorId(usuarioId);
 
             System.out.println("Forma de pago:");
@@ -128,17 +129,26 @@ public class PedidoMenu {
             Pedido pedido = pedidoService.crear(usuario, formaPago);
             System.out.println("✓ Pedido creado con ID: " + pedido.getId());
 
-            // Agregar detalles
             boolean agregarMas = true;
             while (agregarMas) {
                 System.out.println("\n--- PRODUCTOS DISPONIBLES ---");
                 for (Producto p : productos) {
                     System.out.println(p);
                 }
-                System.out.print("ID de producto: ");
+                System.out.print("ID de producto (0 para finalizar): ");
                 Long productoId = (long) leerEntero();
-                Producto producto = productoService.buscarPorId(productoId);
 
+                if (productoId == 0) {
+                    // Validar que tenga al menos un detalle antes de finalizar
+                    if (pedido.getDetalles().isEmpty()) {
+                        System.out.println("✗ El pedido debe tener al menos un producto. Agregue uno.");
+                        continue;
+                    }
+                    agregarMas = false;
+                    break;
+                }
+
+                Producto producto = productoService.buscarPorId(productoId);
                 System.out.print("Cantidad: ");
                 Integer cantidad = leerEntero();
 

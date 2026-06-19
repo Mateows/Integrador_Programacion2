@@ -1,93 +1,83 @@
 package integrador.prog2.service;
 
+import integrador.prog2.dao.UsuarioDAO;
+import integrador.prog2.dao.Impl.UsuarioDAOImpl;
 import integrador.prog2.entities.Usuario;
 import integrador.prog2.enums.Rol;
 import integrador.prog2.exception.DatoInvalidoException;
 import integrador.prog2.exception.EmailDuplicadoException;
 import integrador.prog2.exception.EntidadNoEncontradaException;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class UsuarioService {
 
-    private List<Usuario> usuarios;
-    private Long contadorId;
+    private final UsuarioDAO usuarioDAO;
 
     public UsuarioService() {
-        this.usuarios = new ArrayList<>();
-        this.contadorId = 1L;
+        this.usuarioDAO = new UsuarioDAOImpl();
     }
-
-    //Lista los no eliminados
 
     public List<Usuario> listar() {
-        List<Usuario> activos = new ArrayList<>();
-        for (Usuario u : usuarios) {
-            if (!u.isEliminado()) {
-                activos.add(u);
-            }
-        }
-        return activos;
+        return usuarioDAO.listar();
     }
 
-    // Busca por ID
     public Usuario buscarPorId(Long id) {
-        for (Usuario u : usuarios) {
-            if (u.getId().equals(id) && !u.isEliminado()) {
-                return u;
-            }
-        }
-        throw new EntidadNoEncontradaException("No se encontró usuario con el ID: " + id);
+        return usuarioDAO.buscarPorId(id);
     }
 
-    // Crear
-    public Usuario crear(String nombre, String apellido, String mail, String celular, String contrasena, Rol rol) {
-
+    public Usuario crear(String nombre, String apellido, String mail,
+                         String celular, String contrasena, Rol rol) {
         validarNombre(nombre);
+        validarNombreSoloLetras(nombre);
         validarApellido(apellido);
+        validarApellidoSoloLetras(apellido);
         validarMail(mail);
+        validarMailDominio(mail);
         validarMailUnico(mail, null);
         validarCelular(celular);
+        validarCelularLongitud(celular);
         validarContrasena(contrasena);
 
-        Usuario nuevo = new Usuario(contadorId++, nombre.trim(), apellido.trim(), mail.trim().toLowerCase(), celular.trim(), contrasena, rol);
-        usuarios.add(nuevo);
-        return nuevo;
+        Usuario nuevo = new Usuario(null, nombre.trim(), apellido.trim(),
+                mail.trim().toLowerCase(), celular.trim(),
+                contrasena, rol);
+        return usuarioDAO.crear(nuevo);
     }
 
-    // Editar
-    public Usuario editar(Long id, String nombre, String apellido, String mail, String celular) {
-
+    public Usuario editar(Long id, String nombre, String apellido,
+                          String mail, String celular) {
         Usuario usuario = buscarPorId(id);
 
         if (nombre != null && !nombre.isBlank()) {
             validarNombre(nombre);
+            validarNombreSoloLetras(nombre);
             usuario.setNombre(nombre.trim());
         }
         if (apellido != null && !apellido.isBlank()) {
             validarApellido(apellido);
+            validarApellidoSoloLetras(apellido);
             usuario.setApellido(apellido.trim());
         }
         if (mail != null && !mail.isBlank()) {
             validarMail(mail);
+            validarMailDominio(mail);
             validarMailUnico(mail, id);
             usuario.setMail(mail.trim().toLowerCase());
         }
         if (celular != null && !celular.isBlank()) {
             validarCelular(celular);
+            validarCelularLongitud(celular);
             usuario.setCelular(celular.trim());
         }
-        return usuario;
+        return usuarioDAO.editar(usuario);
     }
 
-    // Eliminar
     public void eliminar(Long id) {
         Usuario usuario = buscarPorId(id);
-        usuario.setEliminado(true);
+        usuarioDAO.eliminar(id);
     }
 
-    // Validaciones privadas
     private void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new DatoInvalidoException("El nombre no puede estar vacío");
@@ -116,12 +106,8 @@ public class UsuarioService {
     }
 
     private void validarMailUnico(String mail, Long idExcluir) {
-        for (Usuario u : usuarios) {
-            if (!u.isEliminado() &&
-                    u.getMail().equalsIgnoreCase(mail.trim()) &&
-                    !u.getId().equals(idExcluir)) {
-                throw new EmailDuplicadoException("Ya existe un usuario con el mail: " + mail);
-            }
+        if (usuarioDAO.existeMail(mail.trim(), idExcluir)) {
+            throw new EmailDuplicadoException("Ya existe un usuario con el mail: " + mail);
         }
     }
 
@@ -129,7 +115,7 @@ public class UsuarioService {
         if (celular == null || celular.isBlank()) {
             throw new DatoInvalidoException("El celular no puede estar vacío");
         }
-        if (!celular.trim().matches("\\d+")) { //trim -> Elimina los espacios en blanco al principio y al final de un String
+        if (!celular.trim().matches("\\d+")) {
             throw new DatoInvalidoException("El celular solo puede contener números");
         }
     }
@@ -146,9 +132,32 @@ public class UsuarioService {
     public void validarMailUnico(String mail) {
         validarMailUnico(mail, null);
     }
+    private void validarNombreSoloLetras(String nombre) {
+        if (!nombre.trim().matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
+            throw new DatoInvalidoException("El nombre solo puede contener letras y espacios");
+        }
+    }
+
+    private void validarApellidoSoloLetras(String apellido) {
+        if (!apellido.trim().matches("[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+")) {
+            throw new DatoInvalidoException("El apellido solo puede contener letras y espacios");
+        }
+    }
+
+    private void validarCelularLongitud(String celular) {
+        if (celular.trim().length() < 8) {
+            throw new DatoInvalidoException("El celular debe tener al menos 8 dígitos");
+        }
+    }
+
+    private void validarMailDominio(String mail) {
+        String[] partes = mail.split("@");
+        if (partes.length != 2 || !partes[1].contains(".") || partes[1].endsWith(".")) {
+            throw new DatoInvalidoException("El mail no tiene un dominio válido");
+        }
+        String dominio = partes[1].split("\\.")[1];
+        if (dominio.length() < 2) {
+            throw new DatoInvalidoException("El dominio del mail no es válido");
+        }
+    }
 }
-//trim -> Elimina los espacios en blanco al principio y al final de un String
-//matches("\\d+")
-//Verifica que el String cumpla un patrón. En este caso \\d+ significa "solo dígitos, al menos uno".
-//El \\d significa "cualquier dígito del 0 al 9",
-// y el + significa "uno o más". Eso se llama expresión regular (regex) — es un lenguaje para describir patrones de texto.
