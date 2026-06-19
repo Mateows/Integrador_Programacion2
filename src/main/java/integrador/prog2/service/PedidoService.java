@@ -1,23 +1,31 @@
 package integrador.prog2.service;
 
 import integrador.prog2.dao.PedidoDAO;
+import integrador.prog2.dao.ProductoDAO;
 import integrador.prog2.dao.Impl.PedidoDAOImpl;
+import integrador.prog2.dao.Impl.ProductoDAOImpl;
+import integrador.prog2.entities.DetallePedido;
 import integrador.prog2.entities.Pedido;
 import integrador.prog2.entities.Producto;
 import integrador.prog2.entities.Usuario;
 import integrador.prog2.enums.Estado;
 import integrador.prog2.enums.FormaPago;
 import integrador.prog2.exception.DatoInvalidoException;
-import integrador.prog2.entities.DetallePedido;
 
 import java.util.List;
 
+/**
+ * Servicio encargado de gestionar la lógica de negocio de los Pedidos.
+ * Implementa validaciones de stock, coherencia de datos y actualización de inventario.
+ */
 public class PedidoService {
 
     private final PedidoDAO pedidoDAO;
+    private final ProductoDAO productoDAO; // Necesitamos este DAO para actualizar el stock
 
     public PedidoService() {
         this.pedidoDAO = new PedidoDAOImpl();
+        this.productoDAO = new ProductoDAOImpl();
     }
 
     public List<Pedido> listar() {
@@ -32,34 +40,37 @@ public class PedidoService {
         return pedidoDAO.buscarPorId(id);
     }
 
-    public Pedido crear(Usuario usuario, FormaPago formaPago) {
-        validarUsuario(usuario);
-        validarFormaPago(formaPago);
-        validarPedidoPendiente(usuario);
+    /**
+     * Procesa un pedido completo. Valida que el usuario sea válido, que no tenga pedidos
+     * pendientes, verifica el stock de cada producto y finalmente descuenta el inventario.
+     * * @param pedido El pedido armado en memoria con todos sus detalles.
+     * @return El pedido guardado en la base de datos con su ID generado.
+     */
+    public Pedido procesarPedidoCompleto(Pedido pedido) {
+        validarUsuario(pedido.getUsuario());
+        validarFormaPago(pedido.getFormaPago());
+        validarPedidoPendiente(pedido.getUsuario());
+        validarPedidoConDetalles(pedido);
 
-        Pedido nuevo = new Pedido(null, formaPago, usuario);
-        usuario.getPedidos().add(nuevo);
-        return pedidoDAO.crear(nuevo);
-    }
+        // 1. Validamos que haya stock de TODO antes de intentar guardar algo
+        for (DetallePedido dp : pedido.getDetalles()) {
+            Producto p = dp.getProducto();
+            if (p.getStock() < dp.getCantidad()) {
+                throw new DatoInvalidoException("Stock insuficiente para el producto: " + p.getNombre() + ". Quedan " + p.getStock() + " unidades.");
+            }
+        }
 
-    public void agregarDetalle(Pedido pedido, Producto producto, Integer cantidad) {
-        validarProducto(producto);
-        validarProductoNoDuplicado(pedido, producto);
-        if (cantidad == null || cantidad <= 0) {
-            throw new DatoInvalidoException("La cantidad debe ser mayor a 0");
+        // 2. Guardamos el pedido y sus detalles en MySQL (Acá actúa la transacción del DAO)
+        Pedido pedidoGuardado = pedidoDAO.crear(pedido);
+
+        // 3. Si todo salió bien, descontamos el stock de los productos
+        for (DetallePedido dp : pedido.getDetalles()) {
+            Producto p = dp.getProducto();
+            p.setStock(p.getStock() - dp.getCantidad());
+            productoDAO.editar(p); // Actualizamos el stock en la base de datos
         }
-        if (producto.getStock() < cantidad) {
-            throw new DatoInvalidoException("Stock insuficiente. Stock disponible: "
-                    + producto.getStock());
-        }
-        try {
-            pedido.addDetallePedido(cantidad, producto.getPrecio(), producto);
-            DetallePedido ultimoDetalle = pedido.getDetalles().get(pedido.getDetalles().size() - 1);
-            ((PedidoDAOImpl) pedidoDAO).insertarDetalle(pedido.getId(), ultimoDetalle);
-            pedidoDAO.editar(pedido);
-        } catch (Exception e) {
-            throw new DatoInvalidoException("Error al agregar detalle: " + e.getMessage());
-        }
+
+        return pedidoGuardado;
     }
 
     public Pedido actualizar(Long id, Estado estado, FormaPago formaPago) {
@@ -80,63 +91,34 @@ public class PedidoService {
         pedidoDAO.eliminar(id);
     }
 
+    // --- MÉTODOS DE VALIDACIÓN INTERNA ---
+
     private void validarUsuario(Usuario usuario) {
-        if (usuario == null) {
-            throw new DatoInvalidoException("El pedido debe tener un usuario");
-        }
-        if (usuario.isEliminado()) {
-            throw new DatoInvalidoException("El usuario seleccionado no está disponible");
-        }
+        if (usuario == null) throw new DatoInvalidoException("El pedido debe tener un usuario");
+        if (usuario.isEliminado()) throw new DatoInvalidoException("El usuario seleccionado no está disponible");
     }
 
     private void validarFormaPago(FormaPago formaPago) {
-        if (formaPago == null) {
-            throw new DatoInvalidoException("Debe seleccionar una forma de pago");
-        }
-    }
-
-    private void validarProducto(Producto producto) {
-        if (producto == null) {
-            throw new DatoInvalidoException("El producto no puede ser nulo");
-        }
-        if (producto.isEliminado()) {
-            throw new DatoInvalidoException("El producto seleccionado no está disponible");
-        }
-        if (!producto.getDisponible()) {
-            throw new DatoInvalidoException("El producto no está disponible para la venta");
-        }
+        if (formaPago == null) throw new DatoInvalidoException("Debe seleccionar una forma de pago");
     }
 
     private void validarCambioEstado(Estado estadoActual, Estado estadoNuevo) {
-        if (estadoActual == Estado.CANCELADO) {
-            throw new DatoInvalidoException("No se puede modificar un pedido cancelado");
-        }
-        if (estadoActual == Estado.TERMINADO) {
-            throw new DatoInvalidoException("No se puede modificar un pedido terminado");
-        }
+        if (estadoActual == Estado.CANCELADO) throw new DatoInvalidoException("No se puede modificar un pedido cancelado");
+        if (estadoActual == Estado.TERMINADO) throw new DatoInvalidoException("No se puede modificar un pedido terminado");
     }
+
     private void validarPedidoPendiente(Usuario usuario) {
         List<Pedido> pedidos = pedidoDAO.listarPorUsuario(usuario.getId());
         for (Pedido p : pedidos) {
             if (p.getEstado() == Estado.PENDIENTE) {
-                throw new DatoInvalidoException(
-                        "El usuario ya tiene un pedido PENDIENTE (ID: " + p.getId() + "). Confirmalo o cancelalo primero."
-                );
+                throw new DatoInvalidoException("El usuario ya tiene un pedido PENDIENTE (ID: " + p.getId() + "). Confirmalo o cancelalo primero.");
             }
         }
     }
 
-    private void validarProductoNoDuplicado(Pedido pedido, Producto producto) {
-        if (pedido.findDetallePedidoByProducto(producto) != null) {
-            throw new DatoInvalidoException(
-                    "El producto '" + producto.getNombre() + "' ya está en el pedido"
-            );
-        }
-    }
-
     private void validarPedidoConDetalles(Pedido pedido) {
-        if (pedido.getDetalles().isEmpty()) {
-            throw new DatoInvalidoException("El pedido debe tener al menos un producto");
+        if (pedido.getDetalles() == null || pedido.getDetalles().isEmpty()) {
+            throw new DatoInvalidoException("El pedido debe tener al menos un producto agregado.");
         }
     }
 }

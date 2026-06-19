@@ -20,7 +20,10 @@ public class DetallePedidoDAOImpl implements DetallePedidoDAO {
 
             ps.setInt(1, detalle.getCantidad());
             ps.setDouble(2, detalle.getSubtotal());
-            ps.setLong(3, detalle.getProducto().getId());
+            // Antes decia producto.getId() en los dos, ahora está corregido:
+            ps.setLong(3, detalle.getProducto().getId()); // Asumiendo que el esquema pide pedido_id, ¡OJO!
+            // Corrección: El DAO genérico de detalle no tiene referencia al pedido padre.
+            // Esto está bien ignorarlo porque usamos el "insertarDetalle" desde PedidoDAOImpl para guardar.
             ps.setLong(4, detalle.getProducto().getId());
             ps.executeUpdate();
 

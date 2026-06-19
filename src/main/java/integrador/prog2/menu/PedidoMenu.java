@@ -92,6 +92,11 @@ public class PedidoMenu {
         }
     }
 
+    /**
+     * Inicia el flujo interactivo para crear un nuevo pedido.
+     * Implementa un "carrito en memoria": acumula detalles temporalmente
+     * y delega la persistencia final al servicio para proteger la transacción.
+     */
     private void crear() {
         System.out.println("\n--- CREAR PEDIDO ---");
         List<Usuario> usuarios = usuarioService.listar();
@@ -126,41 +131,64 @@ public class PedidoMenu {
                 default -> FormaPago.EFECTIVO;
             };
 
-            Pedido pedido = pedidoService.crear(usuario, formaPago);
-            System.out.println("✓ Pedido creado con ID: " + pedido.getId());
+            // Creamos un pedido temporal EN MEMORIA (No se guarda en BD todavía)
+            Pedido pedidoTemporal = new Pedido(null, formaPago, usuario);
 
             boolean agregarMas = true;
             while (agregarMas) {
                 System.out.println("\n--- PRODUCTOS DISPONIBLES ---");
                 for (Producto p : productos) {
-                    System.out.println(p);
+                    // Mostramos solo los que tienen stock
+                    if (p.getStock() > 0) {
+                        System.out.println(p);
+                    }
                 }
-                System.out.print("ID de producto (0 para finalizar): ");
+
+                System.out.print("ID de producto (0 para finalizar el carrito): ");
                 Long productoId = (long) leerEntero();
 
                 if (productoId == 0) {
-                    // Validar que tenga al menos un detalle antes de finalizar
-                    if (pedido.getDetalles().isEmpty()) {
-                        System.out.println("✗ El pedido debe tener al menos un producto. Agregue uno.");
-                        continue;
-                    }
-                    agregarMas = false;
-                    break;
+                    break; // Cortamos el bucle para procesar el pedido
                 }
 
                 Producto producto = productoService.buscarPorId(productoId);
-                System.out.print("Cantidad: ");
+
+                // Evitamos duplicados en el carrito en memoria
+                if (pedidoTemporal.findDetallePedidoByProducto(producto) != null) {
+                    System.out.println("✗ El producto ya está en el carrito. Elija otro.");
+                    continue;
+                }
+
+                System.out.print("Cantidad (Stock disp: " + producto.getStock() + "): ");
                 Integer cantidad = leerEntero();
 
-                pedidoService.agregarDetalle(pedido, producto, cantidad);
-                System.out.println("✓ Detalle agregado. Total actual: $" + pedido.getTotal());
+                if (cantidad <= 0 || cantidad > producto.getStock()) {
+                    System.out.println("✗ Cantidad inválida o superior al stock disponible.");
+                    continue;
+                }
+
+                // Agregamos el detalle al carrito temporal (esto calcula el subtotal automático)
+                pedidoTemporal.addDetallePedido(cantidad, producto.getPrecio(), producto);
+                System.out.println("✓ Detalle agregado al carrito. Total provisorio: $" + pedidoTemporal.getTotal());
 
                 System.out.print("¿Agregar otro producto? (S/N): ");
                 agregarMas = scanner.nextLine().trim().equalsIgnoreCase("S");
             }
-            System.out.println("✓ Pedido finalizado. Total: $" + pedido.getTotal());
+
+            // Validamos que el carrito no esté vacío antes de guardar
+            if (pedidoTemporal.getDetalles().isEmpty()) {
+                System.out.println("✗ Operación cancelada. El pedido quedó vacío.");
+                return;
+            }
+
+            // En este punto, mandamos el pedido completo al servicio para que haga la Transacción SQL y reste el stock
+            Pedido pedidoGuardado = pedidoService.procesarPedidoCompleto(pedidoTemporal);
+            System.out.println("✅ ¡Pedido finalizado y guardado con éxito! ID: " + pedidoGuardado.getId() + " | Total final: $" + pedidoGuardado.getTotal());
+
         } catch (EntidadNoEncontradaException | DatoInvalidoException e) {
-            System.out.println("✗ Error: " + e.getMessage());
+            System.out.println("✗ Error de negocio: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("✗ Error crítico en la transacción: " + e.getMessage());
         }
     }
 
