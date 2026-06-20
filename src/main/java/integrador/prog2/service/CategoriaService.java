@@ -1,7 +1,9 @@
 package integrador.prog2.service;
 
 import integrador.prog2.dao.CategoriaDAO;
+import integrador.prog2.dao.ProductoDAO;
 import integrador.prog2.dao.Impl.CategoriaDaoImpl;
+import integrador.prog2.dao.Impl.ProductoDAOImpl;
 import integrador.prog2.entities.Categoria;
 import integrador.prog2.exception.DatoInvalidoException;
 import integrador.prog2.exception.EntidadNoEncontradaException;
@@ -11,9 +13,11 @@ import java.util.List;
 public class CategoriaService {
 
     private final CategoriaDAO categoriaDAO;
+    private final ProductoDAO productoDAO; // Necesario para chequear productos asociados antes de eliminar
 
     public CategoriaService() {
         this.categoriaDAO = new CategoriaDaoImpl();
+        this.productoDAO = new ProductoDAOImpl();
     }
 
     public List<Categoria> listar() {
@@ -50,7 +54,8 @@ public class CategoriaService {
 
     public void eliminar(Long id) {
         Categoria categoria = buscarPorId(id);
-        if (!categoria.getProductos().isEmpty()) {
+        List<integrador.prog2.entities.Producto> productosAsociados = productoDAO.listarPorCategoria(id);
+        if (!productosAsociados.isEmpty()) {
             throw new DatoInvalidoException(
                     "No se puede eliminar la categoría porque tiene productos asociados"
             );

@@ -3,16 +3,23 @@
 Aplicación de consola en Java para gestión de productos, categorías, usuarios y pedidos, desarrollada como Trabajo Práctico Integrador de Programación 2 - UTN.
 
 ---
+INTEGRANTES
+
+Liendo Mateo
+Pagano Amanda
+Avila Lucas
+Comision 1PRO4
+---
 
 ## Estado del Proyecto
-Sistema completo con persistencia real en MySQL mediante JDBC.
+Sistema completo con persistencia real en MySQL mediante JDBC. CRUD funcional en las 4 entidades, baja lógica, transacciones y validaciones de negocio en la capa de servicio.
 
 ### Capas implementadas:
 - **`entities`**: Modelo de dominio con herencia de clase abstracta `Base`, enums e interfaz `Calculable`.
 - **`exception`**: Excepciones de negocio personalizadas (`DatoInvalidoException`, `EmailDuplicadoException`, `EntidadNoEncontradaException`, `StockInvalidoException`).
-- **`service`**: Lógica de negocio con validaciones defensivas completas.
+- **`service`**: Lógica de negocio con validaciones defensivas completas. Es la única capa que decide qué hacer ante un dato inválido o una regla de negocio.
 - **`dao`**: Interfaces genéricas y específicas por entidad.
-- **`dao/Impl`**: Implementaciones JDBC con `PreparedStatement`, `ResultSet` y transacciones.
+- **`dao/Impl`**: Implementaciones JDBC con `PreparedStatement`, `ResultSet` y transacciones (`commit`/`rollback`).
 - **`config`**: Clase `ConexionBD` centralizada para gestión de credenciales.
 - **`menu`**: Interfaz de consola modularizada con validación de entrada en tiempo real.
 
@@ -36,6 +43,8 @@ Sistema completo con persistencia real en MySQL mediante JDBC.
    - Las 5 tablas (`categoria`, `producto`, `usuario`, `pedido`, `detalle_pedido`)
    - Datos semilla de prueba (2 categorías, 3 productos, 2 usuarios)
 
+>  El script incluye `DROP TABLE IF EXISTS` antes de crear las tablas. Si ya tenés datos cargados en una corrida anterior, se van a borrar al volver a ejecutarlo.
+
 ---
 
 ## Configuración de la Conexión
@@ -56,8 +65,8 @@ Cambiá `USER` y `PASSWORD` según tu configuración local.
 
 1. Cloná el repositorio.
 2. Configurá la base de datos siguiendo los pasos anteriores.
-3. Abrí el proyecto en IntelliJ IDEA.
-4. Esperá que Maven descargue las dependencias.
+3. Abrí el proyecto en IntelliJ IDEA (o el IDE de tu preferencia).
+4. Esperá que Maven descargue las dependencias (`mysql-connector-j`).
 5. Ejecutá la clase `Main.java`.
 
 ---
@@ -65,30 +74,27 @@ Cambiá `USER` y `PASSWORD` según tu configuración local.
 ## Funcionalidades
 
 ### Categorías
-- Listar, crear, editar y eliminar (baja lógica)
-- Validación de nombre único y mínimo 2 caracteres
-- No permite eliminar si tiene productos asociados
+- Listar, crear, editar y eliminar (baja lógica).
+- Validación de nombre único y mínimo 2 caracteres.
+- **No permite eliminar si tiene productos asociados** (verificado contra la base de datos en el momento de eliminar, no contra un dato cacheado en memoria).
 
 ### Productos
-- Listar todos o por categoría
-- Crear con validación de precio >= 0 y stock >= 0
-- Editar y eliminar (baja lógica)
+- Listar todos o por categoría.
+- Crear con validación de precio >= 0 y stock >= 0.
+- Editar y eliminar (baja lógica).
 
 ### Usuarios
-- Listar, crear, editar y eliminar (baja lógica)
-- Validación de mail único y formato válido
-- Contraseña mínimo 6 caracteres
-- Celular solo números
+- Listar, crear, editar y eliminar (baja lógica).
+- Validación de mail único y formato válido.
+- Contraseña mínimo 6 caracteres.
+- Celular solo números.
 
 ### Pedidos
-- Crear pedido con múltiples detalles
-- Cálculo automático de subtotal y total (`calcularTotal()` via interfaz `Calculable`)
-- Transacción JDBC: si falla un detalle se hace rollback completo
-- Actualizar estado y forma de pago
-- Eliminar lógicamente pedido y sus detalles
-
----
-
-## Pendiente
-- Prueba de funcionamiento correcto
-- Documentación PDF: [pendiente]
+- Crear pedido con múltiples detalles (carrito en memoria antes de persistir).
+- Validación de stock disponible antes de confirmar el pedido.
+- Cálculo automático de subtotal y total (`calcularTotal()` vía interfaz `Calculable`).
+- Transacción JDBC: si falla un detalle, se hace rollback completo del pedido.
+- Descuento de stock al confirmar el pedido.
+- No permite crear un pedido nuevo si el usuario ya tiene uno PENDIENTE.
+- Actualizar estado y forma de pago (con reglas de transición: no se puede modificar un pedido CANCELADO o TERMINADO).
+- Eliminar lógicamente pedido y sus detalles.
