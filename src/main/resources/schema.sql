@@ -1,14 +1,12 @@
---ATENTOS A ESTO POR FAVOR, ESTE SCHEMA DESPUES SE TIENE QUE BORRAR Y LLEVAR A LA BASE DE DATOS DE MYSQL, ES DECIR, ESTE CODIGO VA EN LA BASE DE DATOS Y DE AHI
---HACEMOS LA CONEXION
---QUIEN SE QUIERA HACER CARGO QUE DIGA, TAMBIEN SI EL TIEMPO NOS DA
--- PODEMOS HACER UNA BASE DE DATOS CONTINUAS (QUE LOS DATOS SEAN EN TIEMPO REAL)
-
+/*
+ BASE DE DATOS PARA EL TPI DE PROGRAMACIÓN, ES COPIAR Y PEGAR Y QUE SEA LO QUE DIOS QUIERA
+ */
 
 -- ============================================================================
 -- 1-Creamos la base de Datos para que después al conectarla a MySQL quede todo hecho
 -- ============================================================================
-CREATE DATABASE IF NOT EXISTS food_store_db;
-USE food_store_db; --Asi se va a llamar nuestra base de datos, acuerdense
+CREATE DATABASE IF NOT EXISTS food_store;
+USE food_store; --Asi se va a llamar nuestra base de datos, acuerdense
 
 -- Si la cagamos, borramos todo XD
 DROP TABLE IF EXISTS detalle_pedido;
