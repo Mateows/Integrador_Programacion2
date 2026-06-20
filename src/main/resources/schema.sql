@@ -8,7 +8,7 @@
 CREATE DATABASE IF NOT EXISTS food_store;
 USE food_store; --Asi se va a llamar nuestra base de datos, acuerdense
 
--- Si la cagamos, borramos todo XD
+
 DROP TABLE IF EXISTS detalle_pedido;
 DROP TABLE IF EXISTS pedido;
 DROP TABLE IF EXISTS producto;
