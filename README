@@ -3,12 +3,6 @@
 Aplicación de consola en Java para gestión de productos, categorías, usuarios y pedidos, desarrollada como Trabajo Práctico Integrador de Programación 2 - UTN.
 
 ---
-INTEGRANTES
-
-Liendo Mateo
-Pagano Amanda
-Avila Lucas
-Comision 1PRO4
 ---
 
 ## Estado del Proyecto
@@ -38,8 +32,8 @@ Sistema completo con persistencia real en MySQL mediante JDBC. CRUD funcional en
 1. Asegurate de tener MySQL corriendo localmente.
 2. Abrí MySQL Workbench y conectate al servidor local.
 3. Abrí el archivo `src/main/resources/schema.sql`.
-4. Ejecutalo completo con el botón ⚡ — esto crea automáticamente:
-   - La base de datos `food_store_db`
+4. Ejecutalo completo con el botón de rayito en tu SQL o donde vayas a utilizar la Base de Datos — esto crea automáticamente:
+   - La base de datos `food_store`
    - Las 5 tablas (`categoria`, `producto`, `usuario`, `pedido`, `detalle_pedido`)
    - Datos semilla de prueba (2 categorías, 3 productos, 2 usuarios)
 
@@ -98,3 +92,6 @@ Cambiá `USER` y `PASSWORD` según tu configuración local.
 - No permite crear un pedido nuevo si el usuario ya tiene uno PENDIENTE.
 - Actualizar estado y forma de pago (con reglas de transición: no se puede modificar un pedido CANCELADO o TERMINADO).
 - Eliminar lógicamente pedido y sus detalles.
+
+
+URL al Repositorio: https://github.com/Mateows/Integrador_Programacion2.git
