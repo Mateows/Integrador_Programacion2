@@ -92,3 +92,6 @@ Cambiá `USER` y `PASSWORD` según tu configuración local.
 - No permite crear un pedido nuevo si el usuario ya tiene uno PENDIENTE.
 - Actualizar estado y forma de pago (con reglas de transición: no se puede modificar un pedido CANCELADO o TERMINADO).
 - Eliminar lógicamente pedido y sus detalles.
+
+
+URL al Repositorio: https://github.com/Mateows/Integrador_Programacion2.git
